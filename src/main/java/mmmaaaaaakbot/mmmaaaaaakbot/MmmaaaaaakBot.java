@@ -3,7 +3,7 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package mmmaaaaaakbot;
+package mmmaaaaaakbot.mmmaaaaaakbot;
 
 /**
  *
@@ -25,6 +25,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
@@ -95,6 +96,38 @@ public class MmmaaaaaakBot extends ListenerAdapter {
         return null;
     }
     
+    private class TriggerWord {
+        private final String words;
+        private final String url;
+        private final String msg;
+        
+        TriggerWord(String words, String url, String msg) {
+            this.words = words;
+            this.url = url;
+            this.msg = msg;
+        }
+    }
+    
+    private ArrayList<TriggerWord> getTriggerWords() {
+        ArrayList<TriggerWord> triggerWords = new ArrayList<>();
+        try {
+            String sql = "select * from trigger_words";
+            Statement stmt = conn.createStatement();
+            ResultSet rs    = stmt.executeQuery(sql);
+            while (rs.next()) {
+                TriggerWord tw = new TriggerWord(
+                        rs.getString("words"),
+                        rs.getString("url"),
+                        rs.getString("msg")
+                );
+                triggerWords.add(tw);
+            }
+        } catch (SQLException ex) {
+            Logger.getLogger(MmmaaaaaakBot.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        return triggerWords;
+    }
+    
     @Override
     public void onMessageReceived(MessageReceivedEvent event) {
         User author = event.getAuthor();
@@ -112,7 +145,7 @@ public class MmmaaaaaakBot extends ListenerAdapter {
             
             if(rawMessage.startsWith("!")) { // Commands
                 
-                String pattern = "^\\!learn words \"([^\"]*)\"( url <([^\"]*)>)?( msg \"([^\"]*)\")?$";
+                String pattern = "^\\!learn \"([^\"]*)\"( <([^\"]*)>)?( \"([^\"]*)\")?$";
                 Pattern p = Pattern.compile(pattern,Pattern.CASE_INSENSITIVE);
                 Matcher m = p.matcher(rawMessage);
 
@@ -155,7 +188,7 @@ public class MmmaaaaaakBot extends ListenerAdapter {
                             case HELP:
                                 String info = "";
                                 for(Command c : Command.values()) {
-                                    info += "!" + c + ": " + c.getDescription() + "\n";
+                                    info += "!" + c.toString().toLowerCase() + ": " + c.getDescription() + "\n";
                                 }
                                 messageChannel.sendMessage(info).queue();
                                 break;
@@ -175,6 +208,19 @@ public class MmmaaaaaakBot extends ListenerAdapter {
                                 messageChannel.sendMessage("I love spam-a-lot.").queue();
                                 spam = true;
                                 break;
+                            case WORDS:
+                                String triggerWords = "";
+                                for(TriggerWord tw : getTriggerWords()) {
+                                    triggerWords += "\"" + tw.words + "\"";
+                                    if(tw.url != null) {
+                                        triggerWords += " <" + tw.url + ">";
+                                    }
+                                    if(tw.msg != null) {
+                                        triggerWords += " \"" + tw.msg + "\"";
+                                    }
+                                    triggerWords += "\n";
+                                }
+                                messageChannel.sendMessage(triggerWords).queue();
                         }
                     } catch(IllegalArgumentException e) {
                         System.out.println("No such command: " + rawMessage);
